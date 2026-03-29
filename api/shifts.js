@@ -1,29 +1,8 @@
-const API_URL = process.env.KV_REST_API_URL;
-const API_TOKEN = process.env.KV_REST_API_TOKEN;
-const KV_KEY = 'linxiang_schedule_v1';
+const BASE = process.env.KV_REST_API_URL;
+const TOKEN = process.env.KV_REST_API_TOKEN;
+const KEY = 'schedule';
 
-async function kvGet() {
-  const res = await fetch(`${API_URL}/get/${KV_KEY}`, {
-    headers: { Authorization: `Bearer ${API_TOKEN}` }
-  });
-  const data = await res.json();
-  if (!data.result) return {};
-  try {
-    return JSON.parse(data.result);
-  } catch(e) { return {}; }
-}
-
-async function kvSet(value) {
-  const body = `["${KV_KEY}","${JSON.stringify(value).replace(/"/g, '\\"')}"]`;
-  await fetch(`${API_URL}/mset`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${API_TOKEN}`,
-      'Content-Type': 'application/json'
-    },
-    body: body
-  });
-}
+const headers = { Authorization: `Bearer ${TOKEN}` };
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -33,15 +12,29 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const data = await kvGet();
-      return res.status(200).json(data);
+      const r = await fetch(`${BASE}/get/${KEY}`, { headers });
+      const { result } = await r.json();
+      return res.status(200).json(result ? JSON.parse(result) : {});
 
     } else if (req.method === 'POST') {
       const { staff, shifts } = req.body;
-      if (!staff || !shifts) return res.status(400).json({ error: 'Missing staff or shifts' });
-      const existing = await kvGet();
-      existing[staff] = shifts;
-      await kvSet(existing);
+      if (!staff || !shifts) return res.status(400).json({ error: 'Missing params' });
+
+      // 先讀出現有資料
+      const r = await fetch(`${BASE}/get/${KEY}`, { headers });
+      const { result } = await r.json();
+      const data = result ? JSON.parse(result) : {};
+
+      // 更新該員工
+      data[staff] = shifts;
+
+      // 用 SET 指令存回去（正確格式）
+      await fetch(`${BASE}/set/${KEY}`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(JSON.stringify(data))
+      });
+
       return res.status(200).json({ ok: true });
 
     } else {
