@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/shifts.js": {
+      "memory": 128,
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    { "source": "/api/shifts", "destination": "/api/shifts.js" }
+  ]
+}
