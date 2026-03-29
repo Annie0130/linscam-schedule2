@@ -7,17 +7,26 @@ async function kvGet() {
     headers: { Authorization: `Bearer ${API_TOKEN}` }
   });
   const data = await res.json();
-  return data.result ? JSON.parse(data.result) : {};
+  if (!data.result) return {};
+  // 處理可能的雙重編碼
+  try {
+    const parsed = JSON.parse(data.result);
+    if (typeof parsed === 'string') return JSON.parse(parsed);
+    return parsed;
+  } catch(e) {
+    return {};
+  }
 }
 
 async function kvSet(value) {
+  // 直接存 JSON 字串，不要雙重編碼
   await fetch(`${API_URL}/set/${KV_KEY}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${API_TOKEN}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ value: JSON.stringify(value) })
+    body: JSON.stringify([KV_KEY, JSON.stringify(value)])
   });
 }
 
@@ -39,6 +48,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const data = await kvGet();
       return res.status(200).json(data);
+
     } else if (req.method === 'POST') {
       const { staff, shifts } = req.body;
       if (!staff || !shifts) return res.status(400).json({ error: 'Missing staff or shifts' });
@@ -46,6 +56,7 @@ export default async function handler(req, res) {
       existing[staff] = shifts;
       await kvSet(existing);
       return res.status(200).json({ ok: true });
+
     } else {
       return res.status(405).json({ error: 'Method not allowed' });
     }
