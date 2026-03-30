@@ -63,6 +63,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .notice-board-holiday{font-size:11px;color:#7a5800;background:#fff8dc;border-radius:5px;padding:4px 8px;margin-bottom:6px;line-height:1.6}
 .notice-board-input{width:100%;font-size:12px;padding:6px 8px;border:1px solid #f0c040;border-radius:6px;background:#fff;color:#1a1a18;resize:vertical;min-height:60px;font-family:inherit}
 .notice-board-input:focus{outline:none;border-color:#ba7517}
+/* 首頁全員月曆 */
+.v0-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.v0-table{width:100%;border-collapse:collapse;min-width:480px;table-layout:fixed}
+.v0-table th{background:#f5f5f0;padding:6px 2px;text-align:center;font-size:11px;font-weight:700;color:#666;border:1px solid #e8e8e0}
+.v0-table th.we{color:#c0392b}
+.v0-td{border:1px solid #e8e8e0;padding:3px 3px;vertical-align:top;background:#fff;height:54px}
+.v0-td.out{background:#fafaf8}
+.v0-td.hday{background:#fff5f5}
+.v0-td.today-td{background:#f0f7ff;border-color:#4a90e2}
+.v0-dn{font-size:10px;font-weight:700;color:#888;margin-bottom:2px}
+.v0-dn.we{color:#c0392b}
+.v0-dn.hd{color:#c0392b}
+.v0-chip{display:block;padding:1px 3px;border-radius:3px;font-size:9px;font-weight:600;color:#fff;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.v0-holiday-tag{font-size:8px;color:#c0392b;display:block;margin-bottom:1px}
 /* calendar month header */
 .cal-month-header{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px 16px 4px;background:#fff}
 .cal-month-lbl{font-size:18px;font-weight:700;color:#1a1a18;min-width:130px;text-align:center}
@@ -273,11 +287,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <!-- ══ STEP 0 ══ -->
 <div id="v0">
-  <div class="hd"><div class="hd-logo">林相攝影 <small>員工排班系統</small></div></div>
+  <div class="hd">
+    <div class="hd-logo">林相攝影 <small>員工排班系統</small></div>
+    <div class="hd-right" id="v0-month-nav" style="display:flex;align-items:center;gap:6px">
+      <button class="btn-link" onclick="chV0M(-1)" style="font-size:20px;padding:0 6px">‹</button>
+      <span id="v0-month-lbl" style="font-size:13px;font-weight:700;color:#1a1a18;min-width:80px;text-align:center"></span>
+      <button class="btn-link" onclick="chV0M(1)" style="font-size:20px;padding:0 6px">›</button>
+    </div>
+  </div>
   <div class="s0-wrap">
-    <div class="notice">選擇你的名字開始填寫本月班表。<br>特休依勞基法第38條及入職日自動計算。<br><span style="color:#c0392b">紅色邊框 = 特休超額，請與老闆確認。</span></div>
-
-    <div class="section-lbl">正職員工</div>
+    <!-- 當月全員日曆 -->
+    <div id="v0-cal-wrap" style="overflow-x:auto;margin-bottom:12px">
+      <div id="v0-cal"></div>
+    </div>
+    <div class="section-lbl">點名字填寫本月班表</div>
     <div class="sgrid" id="sgrid-ft"></div>
     <div class="section-lbl">工讀生（不規定應排班天數）</div>
     <div class="sgrid" id="sgrid-pt"></div>
@@ -291,7 +314,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="hd-logo">林相攝影 <small>排班填寫</small></div>
     <div class="hd-right">
       <span class="hd-staff" id="hd-name"></span>
-      <button class="btn-link" onclick="goStep(0)">換人</button>
+      <button class="btn-link" onclick="goStep(0)">← 首頁</button>
       <button class="btn-link" onclick="showMyRecord()">我的記錄</button>
     </div>
   </div>
@@ -521,7 +544,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
    員工資料
 ════════════════════════════ */
 const STAFF=[
-  {name:'宇玟', c:'#378ADD',bg:'#E6F1FB',t:'#0C447C',hired:'2024-05-01',usedBefore:9,manualQuota:10,manualQuotaUntil:'2026-04-30',partTime:false},
+  {name:'宇玟', c:'#378ADD',bg:'#E6F1FB',t:'#0C447C',hired:'2024-05-01',usedBefore:0,manualQuota:10,manualQuotaUntil:'2026-04-30',partTime:false},
   {name:'孟庭', c:'#1D9E75',bg:'#E1F5EE',t:'#085041',hired:'2026-03-01',usedBefore:0,partTime:false},
   {name:'琳',   c:'#D85A30',bg:'#FAECE7',t:'#712B13',hired:'2026-03-01',usedBefore:0,partTime:false},
   {name:'霖',   c:'#D4537E',bg:'#FBEAF0',t:'#72243E',hired:null,usedBefore:0,partTime:true},
@@ -551,6 +574,12 @@ const HOLIDAYS={
    ⚠️ 這就是員工「已排的班」的來源
 ══════════════════════════════════════ */
 const EX={
+  /* ── 宇玟歷史特休（2025年） ── */
+  '2025-4-13':[{s:'宇玟',t:'特休'}],   // 第1次
+  '2025-7-25':[{s:'宇玟',t:'特休'}],   // 第2次
+  '2025-7-26':[{s:'宇玟',t:'特休'}],   // 第3次
+  /* ── 1月（宇玟特休）── */
+  '2026-1-16':[{s:'宇玟',t:'特休'}],   // 第4次特休
   /* ── 3月 ── */
   '2026-3-1':[{s:'孟庭',t:'12-21'}],
   '2026-3-2':[{s:'宇玟',t:'12-21'},{s:'孟庭',t:'12-21'}],
@@ -582,17 +611,17 @@ const EX={
   '2026-3-31':[{s:'宇玟',t:'9-18'},{s:'孟庭',t:'9-18'}],
   /* ── 4月（從Notion截圖匯入）── */
   '2026-4-1':[{s:'宇玟',t:'9-18'},{s:'孟庭',t:'9-18'},{s:'琳',t:'12-21'}],
-  '2026-4-2':[{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'},{s:'宇玟',t:'12-21'}],
+  '2026-4-2':[{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'},{s:'宇玟',t:'特休'}],  // 宇玟第5次特休
   '2026-4-3':[{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'},{s:'孟庭',t:'12-21'}],
   '2026-4-4':[{s:'宇玟',t:'12-21'},{s:'琳',t:'12-21'}],
-  '2026-4-5':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'12-21'}],
+  '2026-4-5':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'特休'}],  // 宇玟第6次特休
   '2026-4-6':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'12-21'}],
   '2026-4-7':[{s:'孟庭',t:'9-18'},{s:'宇玟',t:'9-18'}],
   '2026-4-8':[{s:'琳',t:'9-18'}],
   '2026-4-9':[{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],
-  '2026-4-10':[{s:'宇玟',t:'特休'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],
-  '2026-4-11':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'特休'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],
-  '2026-4-12':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'特休'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],
+  '2026-4-10':[{s:'宇玟',t:'特休'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],  // 宇玟第7次特休
+  '2026-4-11':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'特休'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],  // 宇玟第8次特休
+  '2026-4-12':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'特休'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],  // 宇玟第9次特休
   '2026-4-13':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'12-21'}],
   '2026-4-14':[{s:'孟庭',t:'9-18'},{s:'琳',t:'9-18'}],
   '2026-4-15':[{s:'孟庭',t:'9-18'},{s:'宇玟',t:'9-18'}],
@@ -608,7 +637,7 @@ const EX={
   '2026-4-26':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'12-21'},{s:'琳',t:'12-21'}],
   '2026-4-27':[{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'}],
   '2026-4-28':[{s:'孟庭',t:'9-18'},{s:'琳',t:'12-21'},{s:'霖',t:''}],
-  '2026-4-29':[{s:'宇玟',t:'9-18'}],
+  '2026-4-29':[{s:'宇玟',t:'特休'}],  // 宇玟第10次特休
   '2026-4-30':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'12-21'},{s:'琳',t:'12-21'}],
   /* ── 5月 ── */
   '2026-5-1':[{s:'宇玟',t:'12-21'},{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'}],
@@ -784,16 +813,27 @@ function getStats(name,y,m){
   });
   const arr=Object.entries(combined);
   const work=arr.filter(([,t])=>!LEAVES.includes(t));
-  /* ownLv：只算本次自填的特休，EX歷史特休已含在usedBefore裡不重複加 */
-  const ownLv=Object.entries(own).filter(([k,t])=>{
-    const p=k.split('-');return+p[0]===y&&+p[1]===m&&t==='特休'&&t!=='__DEL__';
+  /* 計算特休使用次數：EX歷史（全年） + 本次自填（當月）*/
+  // EX歷史特休（全年累計，排除已刪除的）
+  const exLv=Object.entries(EX).filter(([k,arr])=>{
+    const ex=arr.find(x=>x.s===name);
+    if(!ex||ex.t!=='特休')return false;
+    // 如果員工自填刪除了這一天，不算
+    const ov=ALL_SHIFTS[name]&&ALL_SHIFTS[name][k];
+    if(ov==='__DEL__')return false;
+    return true;
   }).length;
-  const quota=getQuota(name);
-  const usedBefore=getUsedBefore(name);
-  const rem=quota-(usedBefore+ownLv);
+  // 本次自填特休（當月）
+  const ownLv=Object.entries(own).filter(([k,t])=>{
+    const p=k.split('-');return+p[0]===y&&+p[1]===m&&t==='特休';
+  }).length;
+  const totalLv=exLv+ownLv;
+  const quota=getQuota(name,y,m);
+  const usedBefore=0; // EX歷史已全部計算在exLv裡
+  const rem=quota-totalLv;
   const required=getReq(y,m);
   const bd={};work.forEach(([,t])=>{bd[t]=(bd[t]||0)+1;});
-  return{work:work.length,lvThis:ownLv,quota,usedBefore,totalUsed:usedBefore+ownLv,rem,bd,required,remReq:required-work.length};
+  return{work:work.length,lvThis:ownLv,quota,usedBefore:exLv,totalUsed:totalLv,rem,bd,required,remReq:required-work.length};
 }
 
 function chM(d){CM+=d;if(CM>12){CM=1;CY++;}if(CM<1){CM=12;CY--;}
@@ -814,7 +854,7 @@ function setView(v){
 function goStep(s){
   step=s;selDay=null;
   ['v0','v1','v-record','v-admin','v2'].forEach(id=>document.getElementById(id).style.display='none');
-  if(s===0){document.getElementById('v0').style.display='';rStaffGrid();}
+  if(s===0){document.getElementById('v0').style.display='';rStaffGrid();rV0Cal();}
   if(s===1){
     document.getElementById('v1').style.display='';
     const S=sc(me);const hn=document.getElementById('hd-name');
@@ -910,6 +950,84 @@ function saveNotice(){
   loadNotice();
   toggleNoticeEdit();
 }
+/* ── 首頁全員月曆 ── */
+let v0Y=2026, v0M=new Date().getMonth()+1;
+
+function chV0M(d){
+  v0M+=d;
+  if(v0M>12){v0M=1;v0Y++;}
+  if(v0M<1){v0M=12;v0Y--;}
+  document.getElementById('v0-month-lbl').textContent=v0Y+'年'+v0M+'月';
+  rV0Cal();
+}
+
+function rV0Cal(){
+  const lbl=document.getElementById('v0-month-lbl');
+  if(lbl)lbl.textContent=v0Y+'年'+v0M+'月';
+  const wrap=document.getElementById('v0-cal');
+  if(!wrap)return;
+
+  const dim=new Date(v0Y,v0M,0).getDate();
+  const firstDow=new Date(v0Y,v0M-1,1).getDay(); // 0=週日
+  const startCol=firstDow===0?6:firstDow-1; // 轉成週一開始
+  const t=new Date();
+  const members=STAFF.filter(s=>!s.isBoss);
+
+  let html='<div class="v0-wrap"><table class="v0-table"><thead><tr>';
+  ['一','二','三','四','五','六','日'].forEach((d,i)=>{
+    html+=`<th class="${i>=5?'we':''}">${d}</th>`;
+  });
+  html+='</tr></thead><tbody><tr>';
+
+  // 空白格
+  for(let i=0;i<startCol;i++) html+='<td class="v0-td out"></td>';
+
+  let col=startCol;
+  for(let d=1;d<=dim;d++){
+    const k=key(v0Y,v0M,d);
+    const dow=(startCol+d-1)%7; // 0=週一, 6=週日
+    const isWE=dow>=5;
+    const hname=HOLIDAYS[k];
+    const isToday=v0Y===t.getFullYear()&&v0M===t.getMonth()+1&&d===t.getDate();
+
+    let cls='v0-td';
+    if(hname)cls+=' hday';
+    if(isToday)cls+=' today-td';
+
+    html+=`<td class="${cls}">`;
+    html+=`<div class="v0-dn${isWE?' we':''}${hname?' hd':''}">${d}`;
+    if(hname)html+=`<span class="v0-holiday-tag">${hname}</span>`;
+    html+='</div>';
+
+    // 顯示所有人的班次
+    members.forEach(s=>{
+      let t2=null;
+      const own=ALL_SHIFTS[s.name]&&ALL_SHIFTS[s.name][k];
+      if(own&&own!=='__DEL__'&&own!=='')t2=own;
+      else if(own===undefined){
+        const ex=EX[k]&&EX[k].find(x=>x.s===s.name);
+        if(ex&&ex.t&&ex.t!=='X')t2=ex.t;
+      }
+      if(t2){
+        const isLv=LEAVES.includes(t2);
+        const bg=isLv?'#ba7517':s.c;
+        const label=isLv?t2.substring(0,2):s.name+' '+t2;
+        html+=`<span class="v0-chip" style="background:${bg}">${label}</span>`;
+      }
+    });
+    html+='</td>';
+
+    col++;
+    if(col%7===0&&d<dim)html+='</tr><tr>';
+  }
+
+  // 補尾端空格
+  const remaining=(7-((col)%7))%7;
+  for(let i=0;i<remaining;i++) html+='<td class="v0-td out"></td>';
+  html+='</tr></tbody></table></div>';
+  wrap.innerHTML=html;
+}
+
 function rStaffGrid(){
   const ftG=document.getElementById('sgrid-ft');ftG.innerHTML='';
   const ptG=document.getElementById('sgrid-pt');ptG.innerHTML='';
@@ -935,22 +1053,9 @@ function rStaffGrid(){
       if(t)scheduledDays.push({d,t});
     }
 
-    const sc=s;
-    let scheduleHTML='';
-    if(scheduledDays.length>0){
-      const items=scheduledDays.slice(0,8).map(x=>
-        `<span class="sbtn-day" style="background:${LEAVES.includes(x.t)?'#ba7517':sc.c}">${x.d}日${LEAVES.includes(x.t)?x.t.substring(0,2):x.t}</span>`
-      ).join('');
-      const more=scheduledDays.length>8?`<span style="font-size:9px;color:#aaa">+${scheduledDays.length-8}天</span>`:'';
-      scheduleHTML=`<div class="sbtn-schedule">${items}${more}</div>`;
-    }else{
-      scheduleHTML='<div class="sbtn-empty">本月尚未填寫</div>';
-    }
-
     b.innerHTML=s.name+(isNew?'<span class="new-t">新人</span>':'')+
       (s.partTime?'<span class="pt-t">工讀</span>':'')+
-      '<span class="quota-t'+(isOver?' over':'')+'">特休 '+(ub>0?ub+'/':'')+q+'天'+(isOver?' ⚠':'')+'</span>'+
-      scheduleHTML;
+      '<span class="quota-t'+(isOver?' over':'')+'">特休 '+(ub>0?ub+'/':'')+q+'天'+(isOver?' ⚠':'')+'</span>';
     b.onclick=()=>{me=s.name;CY=2026;CM=nowM;goStep(1);};
     (s.partTime?ptG:ftG).appendChild(b);
   });
@@ -1566,7 +1671,7 @@ function rDone(){
 function swTab(t,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');document.getElementById('tab-s').style.display=t==='s'?'':'none';document.getElementById('tab-e').style.display=t==='e'?'':'none';}
 function cpExp(){navigator.clipboard.writeText(document.getElementById('exparea').textContent).then(()=>{const b=event.target;b.textContent='已複製！';setTimeout(()=>b.textContent='複製文字',2000);});}
 
-rStaffGrid();
+rStaffGrid();rV0Cal();
 </script>
 </body>
 </html>
