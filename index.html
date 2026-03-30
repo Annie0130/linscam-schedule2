@@ -54,6 +54,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .a-danger{background:#fcebeb;color:#791f1f;border:1px solid #f09595}
 .a-info{background:#e6f1fb;color:#185fa5;border:1px solid #85b7eb}
 .a-ok{background:#e1f5ee;color:#085041;border:1px solid #5dcaa5}
+/* 公告欄 */
+.notice-board{background:#fffbe6;border:1px solid #f0c040;border-radius:10px;margin:8px 16px 0;padding:10px 14px}
+.notice-board-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.notice-board-title{font-size:12px;font-weight:700;color:#7a5800}
+.notice-board-edit{font-size:11px;color:#185fa5;cursor:pointer;background:none;border:none}
+.notice-board-content{font-size:12px;color:#5a4000;line-height:1.7;white-space:pre-wrap;min-height:20px}
+.notice-board-holiday{font-size:11px;color:#7a5800;background:#fff8dc;border-radius:5px;padding:4px 8px;margin-bottom:6px;line-height:1.6}
+.notice-board-input{width:100%;font-size:12px;padding:6px 8px;border:1px solid #f0c040;border-radius:6px;background:#fff;color:#1a1a18;resize:vertical;min-height:60px;font-family:inherit}
+.notice-board-input:focus{outline:none;border-color:#ba7517}
+/* calendar month header */
+.cal-month-header{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px 16px 4px;background:#fff}
+.cal-month-lbl{font-size:18px;font-weight:700;color:#1a1a18;min-width:130px;text-align:center}
+.cal-mnav{width:32px;height:32px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#555}
+.cal-mnav:hover{background:#f0f0eb}
 /* calendar */
 .cal-wrap{padding:12px 16px 8px}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
@@ -112,7 +126,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tb:hover{border-color:#888;background:#f5f5f0}
 .tb.sel{background:#e6f1fb;border-color:#185fa5;color:#0c447c}
 .tb.lsel{background:#faeeda;border-color:#ba7517;color:#633806}
-.tb.over{border-color:#f09595;color:#c0392b}
+.tb.over{color:#c0392b}
 .cust-row{display:flex;gap:6px;margin-top:4px}
 .cust-row input{flex:1;font-size:13px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a18}
 .cust-row input:focus{outline:none;border-color:#185fa5}
@@ -279,11 +293,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
   <div class="month-bar">
-    <div class="mnav">
-      <button onclick="chM(-1)">&#8249;</button>
-      <h2 id="mlbl"></h2>
-      <button onclick="chM(1)">&#8250;</button>
-    </div>
     <div class="view-toggle">
       <button class="vtb active" id="vt-cal" onclick="setView('cal')">月曆</button>
       <button class="vtb" id="vt-list" onclick="setView('list')">列表</button>
@@ -326,7 +335,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
     </div>
   </div>
+
+  <!-- 公告欄 -->
+  <div id="notice-board-wrap">
+    <div class="notice-board">
+      <div class="notice-board-hd">
+        <span class="notice-board-title">📢 本月公告</span>
+        <button class="notice-board-edit" id="nb-edit-btn" onclick="toggleNoticeEdit()">✏️ 編輯</button>
+      </div>
+      <!-- 顯示模式 -->
+      <div class="notice-board-content" id="nb-content">載入中...</div>
+      <!-- 編輯模式 -->
+      <div id="nb-edit-wrap" style="display:none">
+        <div style="font-size:11px;color:#7a5800;margin-bottom:4px">節日資訊自動帶入，以下可填寫本月公告事項：</div>
+        <div class="notice-board-holiday" id="nb-holiday-preview"></div>
+        <textarea class="notice-board-input" id="nb-input" placeholder="輸入本月公告、重要事項..."></textarea>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="btn sm p" onclick="saveNotice()">儲存</button>
+          <button class="btn sm" onclick="toggleNoticeEdit()">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="cal-view">
+    <div class="cal-month-header">
+      <button class="cal-mnav" onclick="chM(-1)">&#8249;</button>
+      <span class="cal-month-lbl" id="cal-mlbl"></span>
+      <button class="cal-mnav" onclick="chM(1)">&#8250;</button>
+    </div>
     <div class="cal-wrap">
       <div class="cal" id="cal">
         <div class="ch">一</div><div class="ch">二</div><div class="ch">三</div>
@@ -482,7 +518,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
    員工資料
 ════════════════════════════ */
 const STAFF=[
-  {name:'宇玟', c:'#378ADD',bg:'#E6F1FB',t:'#0C447C',hired:'2025-05-01',manualQuota:7,usedBefore:8,partTime:false},
+  {name:'宇玟', c:'#378ADD',bg:'#E6F1FB',t:'#0C447C',hired:'2024-05-01',usedBefore:3,manualQuota:10,manualQuotaUntil:'2026-04-30',partTime:false},
   {name:'孟庭', c:'#1D9E75',bg:'#E1F5EE',t:'#085041',hired:'2026-03-01',usedBefore:0,partTime:false},
   {name:'琳',   c:'#D85A30',bg:'#FAECE7',t:'#712B13',hired:'2026-03-01',usedBefore:0,partTime:false},
   {name:'霖',   c:'#D4537E',bg:'#FBEAF0',t:'#72243E',hired:null,usedBefore:0,partTime:true},
@@ -604,8 +640,8 @@ const EX={
   '2026-5-31':[{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],
 };
 
-const TIMES=['9-18','10-19','12-21','13-21','14-21'];
-const LEAVES=['特休','病假','事假','補休'];
+const TIMES=['9-18','12-21','14-21'];
+const LEAVES=['特休','病假','事假'];
 const MN=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 const DOW=['日','一','二','三','四','五','六'];
 const ADMIN_PW='1234';
@@ -631,10 +667,41 @@ function myS(){return ALL_SHIFTS[me]||{};}
 /* 顯示用：優先顯示本次自填，若沒有或已刪除則顯示EX歷史 */
 function getMyShift(k){
   const own=ALL_SHIFTS[me]&&ALL_SHIFTS[me][k];
-  if(own==='__DEL__')return null; // 本次明確刪除，不顯示EX歷史
-  if(own&&own!=='')return own;    // 本次有填
+  if(own==='__DEL__')return null;
+  if(own&&own!=='')return own;
   const ex=EX[k]&&EX[k].find(x=>x.s===me);
   return ex?ex.t:null;
+}
+/* 計算某個日期是員工第幾次特休（含EX歷史）*/
+function getLvIndex(targetKey,name){
+  name=name||me;
+  // 蒐集所有特休日期（EX歷史 + 自填，排除__DEL__）
+  const allLvDates=[];
+  // EX歷史特休
+  Object.entries(EX).forEach(([k,arr])=>{
+    if(k===targetKey)return; // 先不算目標日
+    const mine=arr.find(x=>x.s===name);
+    if(mine&&mine.t==='特休'){
+      const ov=ALL_SHIFTS[name]&&ALL_SHIFTS[name][k];
+      if(ov==='__DEL__')return; // 已刪除
+      allLvDates.push(k);
+    }
+  });
+  // 自填特休
+  Object.entries(ALL_SHIFTS[name]||{}).forEach(([k,t])=>{
+    if(k===targetKey)return;
+    if(t==='特休')allLvDates.push(k);
+  });
+  // 排序
+  allLvDates.sort();
+  // 目標日的排名
+  const insertAt=allLvDates.filter(d=>d<targetKey).length;
+  return insertAt+1; // 第幾次（1起算）
+}
+/* 顯示用的特休文字，加上第N次備註 */
+function lvDisplay(k,name){
+  const idx=getLvIndex(k,name);
+  return '特休（第'+idx+'次）';
 }
 /* 判斷此日是否「本次已填有效班次」(__DEL__=已刪，視為未填) */
 function getOwnShift(k){
@@ -646,17 +713,48 @@ function isPT(n){return(STAFF.find(s=>s.name===n)||{partTime:true}).partTime;}
 function key(y,m,d){return y+'-'+m+'-'+d}
 function tod(){const t=new Date();return{y:t.getFullYear(),m:t.getMonth()+1,d:t.getDate()};}
 
-function legalQ(hired){
-  if(!hired)return 14;
-  const h=new Date(hired),n=new Date();
-  let y=n.getFullYear()-h.getFullYear();
-  const a=new Date(n.getFullYear(),h.getMonth(),h.getDate());
-  if(n<a)y--;
-  if(y<1)return 0;if(y<2)return 7;if(y<3)return 10;
-  if(y<5)return 14;if(y<10)return 15;
-  return Math.min(15+(y-10),30);
+function legalQ(hired, refYear, refMonth){
+  if(!hired)return 0;
+  const h=new Date(hired);
+  // 計算基準日：預設用當下，若有指定則用該月的最後一天
+  // 這樣排下個月班表時，會以那個月的額度計算
+  let n;
+  if(refYear!==undefined&&refMonth!==undefined){
+    // 用指定月份的最後一天作為基準（確保滿月就能生效）
+    n=new Date(refYear,refMonth,0); // 0 = 上個月最後一天，所以+1
+    n=new Date(refYear,refMonth-1+1,0); // 該月最後一天
+  }else{
+    n=new Date();
+  }
+  // 計算精確年資（以月為單位）
+  let months=(n.getFullYear()-h.getFullYear())*12+(n.getMonth()-h.getMonth());
+  if(n.getDate()<h.getDate())months--;
+  if(months<6)return 0;
+  if(months<12)return 3;
+  // 計算滿幾年
+  let yrs=n.getFullYear()-h.getFullYear();
+  const anniv=new Date(n.getFullYear(),h.getMonth(),h.getDate());
+  if(n<anniv)yrs--;
+  if(yrs<2)return 7;
+  if(yrs<3)return 10;
+  if(yrs<5)return 14;
+  if(yrs<10)return 15;
+  return Math.min(15+(yrs-10),30);
 }
-function getQuota(n){const s=STAFF.find(x=>x.name===n);return s?.manualQuota!==undefined?s.manualQuota:legalQ(s?.hired||null);}
+function getQuota(n,y,m){
+  const s=STAFF.find(x=>x.name===n);
+  if(!s)return 0;
+  // 如果有設定manualQuotaUntil，在截止日前用manualQuota，之後用legalQ
+  if(s.manualQuota!==undefined&&s.manualQuotaUntil){
+    const refY=y||CY, refM=m||CM;
+    const until=new Date(s.manualQuotaUntil);
+    const refDate=new Date(refY,refM-1,1); // 該月1日
+    if(refDate<=until)return s.manualQuota;
+    else return legalQ(s.hired||null,refY,refM);
+  }
+  if(s.manualQuota!==undefined)return s.manualQuota;
+  return legalQ(s.hired||null,y||CY,m||CM);
+}
 function getUsedBefore(n){return STAFF.find(x=>x.name===n)?.usedBefore||0;}
 function getReq(y,m){return(REQUIRED[y]&&REQUIRED[y][m])||22;}
 function getDaysOff(y,m,lvThis){
@@ -695,7 +793,11 @@ function getStats(name,y,m){
   return{work:work.length,lvThis:ownLv,quota,usedBefore,totalUsed:usedBefore+ownLv,rem,bd,required,remReq:required-work.length};
 }
 
-function chM(d){CM+=d;if(CM>12){CM=1;CY++;}if(CM<1){CM=12;CY--;}document.getElementById('mlbl').textContent=CY+'年 '+MN[CM-1];rCal();rListView();updInfo();}
+function chM(d){CM+=d;if(CM>12){CM=1;CY++;}if(CM<1){CM=12;CY--;}
+  const lbl=CY+'年 '+MN[CM-1];
+  const ml=document.getElementById('mlbl');if(ml)ml.textContent=lbl;
+  const cl=document.getElementById('cal-mlbl');if(cl)cl.textContent=lbl;
+  rCal();rListView();updInfo();loadNotice();}
 
 function setView(v){
   curView=v;
@@ -714,9 +816,12 @@ function goStep(s){
     document.getElementById('v1').style.display='';
     const S=sc(me);const hn=document.getElementById('hd-name');
     hn.textContent=me;hn.style.background=S.bg;hn.style.color=S.t;
-    document.getElementById('mlbl').textContent=CY+'年 '+MN[CM-1];
+    const _lbl=CY+'年 '+MN[CM-1];
+    const _ml=document.getElementById('mlbl');if(_ml)_ml.textContent=_lbl;
+    const _cl=document.getElementById('cal-mlbl');if(_cl)_cl.textContent=_lbl;
     document.getElementById('prog-wrap').style.display=isPT(me)?'none':'';
     loadFromLS(); // 先從localStorage讀（即時）
+    loadNotice();
     rCal();rListView();updInfo();updList();closeDP();
     // 再從雲端載入最新資料（背景）
     loadFromCloud().then(()=>{rCal();rListView();updInfo();updList();});
@@ -735,6 +840,73 @@ function goStep(s){
 }
 
 /* ── 員工選擇 ── */
+const MONTH_HOLIDAYS={
+  1:'🎍 1/1 元旦',
+  2:'🧧 2/15 小年夜 | 2/16 除夕 | 2/17-19 春節 | 2/20 春節補假 | 2/27 和平紀念日補假',
+  3:'🌸 3月無國定假日',
+  4:'👧 4/3 兒童節補假 | 4/4 清明節 | 4/5 清明補假',
+  5:'👷 5/1 勞動節',
+  6:'🐉 6/19 端午節',
+  7:'☀️ 7月無國定假日',
+  8:'🌻 8月無國定假日',
+  9:'🌕 9/25 中秋節 | 9/28 教師節',
+  10:'🎉 10/10 國慶日 | 10/9 國慶補假 | 10/26 光復節補假',
+  11:'🍂 11月無國定假日',
+  12:'🎄 12/25 行憲紀念日',
+};
+
+const NOTICE_KEY='linxiang_notice_v1';
+let noticeEditing=false;
+
+function getNoticeKey(y,m){return NOTICE_KEY+'_'+y+'_'+m;}
+
+function loadNotice(){
+  const key=getNoticeKey(CY,CM);
+  const custom=localStorage.getItem(key)||'';
+  const holiday=MONTH_HOLIDAYS[CM]||'';
+  const contentEl=document.getElementById('nb-content');
+  if(!contentEl)return;
+  // 合併節日 + 自訂公告顯示在同一欄位
+  let display='';
+  if(holiday)display+=holiday;
+  if(custom){
+    if(display)display+='\n──────────\n';
+    display+=custom;
+  }
+  if(!display)display='（點右上角 ✏️ 新增本月公告）';
+  contentEl.textContent=display;
+  // 更新編輯模式的節日預覽和textarea
+  const hp=document.getElementById('nb-holiday-preview');
+  if(hp)hp.textContent=holiday?'🗓 '+holiday:'';
+  const inp=document.getElementById('nb-input');
+  if(inp)inp.value=custom;
+}
+
+function toggleNoticeEdit(){
+  noticeEditing=!noticeEditing;
+  const editWrap=document.getElementById('nb-edit-wrap');
+  const contentEl=document.getElementById('nb-content');
+  const btn=document.getElementById('nb-edit-btn');
+  if(noticeEditing){
+    editWrap.style.display='block';
+    contentEl.style.display='none';
+    btn.textContent='✕ 關閉';
+    const inp=document.getElementById('nb-input');
+    if(inp)setTimeout(()=>inp.focus(),50);
+  }else{
+    editWrap.style.display='none';
+    contentEl.style.display='';
+    btn.textContent='✏️ 編輯';
+  }
+}
+
+function saveNotice(){
+  const key=getNoticeKey(CY,CM);
+  const val=document.getElementById('nb-input').value.trim();
+  localStorage.setItem(key,val);
+  loadNotice();
+  toggleNoticeEdit();
+}
 function rStaffGrid(){
   const ftG=document.getElementById('sgrid-ft');ftG.innerHTML='';
   const ptG=document.getElementById('sgrid-pt');ptG.innerHTML='';
@@ -790,12 +962,30 @@ function updInfo(){
   const lvLbl=quota===0?'特休（年資未滿6月）':`特休剩餘（共${quota}天）`;
   const lvV=quota===0?'—':(rem<0?'-'+(-rem):String(rem));
   const lvU=quota===0?'無特休':rem<0?'已超額！':'天可用';
+  // 計算下次升級特休的日期
+  const staffInfo=STAFF.find(x=>x.name===me);
+  let nextQuotaNote='';
+  if(staffInfo&&staffInfo.hired){
+    const h=new Date(staffInfo.hired);
+    const now=new Date();
+    let yrs=now.getFullYear()-h.getFullYear();
+    const anniv=new Date(now.getFullYear(),h.getMonth(),h.getDate());
+    if(now<anniv)yrs--;
+    const nextAnniv=new Date(h.getFullYear()+yrs+1,h.getMonth(),h.getDate());
+    const nextQ=legalQ(staffInfo.hired.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>{
+      const d2=new Date(parseInt(y)+yrs+1,parseInt(m)-1,parseInt(d));
+      return d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+d2.getDate();
+    }));
+    if(nextQ>quota){
+      nextQuotaNote=` ↗${nextAnniv.getMonth()+1}月後${nextQ}天`;
+    }
+  }
   if(pt){
     strip.innerHTML=`
       <div class="ic"><div class="ic-l">本月出勤</div><div class="ic-v">${work}</div><div class="ic-u">天</div></div>
       <div class="ic warn"><div class="ic-l">本月放假${lvThis>0?'（含特休）':''}</div><div class="ic-v">${daysOff}</div><div class="ic-u">天</div></div>
       <div class="ic"><div class="ic-l">本月出勤</div><div class="ic-v">${work}</div><div class="ic-u">天</div></div>
-      <div class="ic ${lvCls}"><div class="ic-l">${lvLbl}</div><div class="ic-v">${lvV}</div><div class="ic-u">${lvU}</div></div>
+      <div class="ic ${lvCls}"><div class="ic-l">${lvLbl}${nextQuotaNote}</div><div class="ic-v">${lvV}</div><div class="ic-u">${lvU}</div></div>
       <div class="ic"><div class="ic-l">本月特休</div><div class="ic-v">${lvThis}</div><div class="ic-u">天</div></div>`;
   }else{
     const reqCls=remReq<0?'danger':remReq<=3?'warn':'blue';
@@ -804,7 +994,7 @@ function updInfo(){
       <div class="ic warn"><div class="ic-l">本月放假${lvThis>0?'（含特休）':''}</div><div class="ic-v">${daysOff}</div><div class="ic-u">天</div></div>
       <div class="ic"><div class="ic-l">已填出勤</div><div class="ic-v">${work}</div><div class="ic-u">天</div></div>
       <div class="ic ${reqCls}"><div class="ic-l">剩餘需排班</div><div class="ic-v">${remReq<0?0:remReq}</div><div class="ic-u">${remReq<0?'已超出':remReq===0?'已完成':'天待填'}</div></div>
-      <div class="ic ${lvCls}"><div class="ic-l">${lvLbl}</div><div class="ic-v">${lvV}</div><div class="ic-u">${lvU}</div></div>
+      <div class="ic ${lvCls}"><div class="ic-l">${lvLbl}${nextQuotaNote}</div><div class="ic-v">${lvV}</div><div class="ic-u">${lvU}</div></div>
       <div class="ic"><div class="ic-l">本月新增特休</div><div class="ic-v">${lvThis}</div><div class="ic-u">天</div></div>`;
   }
   const pills=document.getElementById('pills');pills.innerHTML='';
@@ -863,7 +1053,7 @@ function rCal(){
       const tag=document.createElement('span');tag.className='my-stag';
       const isLv=LEAVES.includes(mine);
       tag.style.background=isLv?'#faeeda':S.bg;tag.style.color=isLv?'#633806':S.t;
-      tag.textContent=me+' '+mine;cell.appendChild(tag);
+      tag.textContent=me+' '+(mine==='特休'?lvDisplay(k):mine);cell.appendChild(tag);
     }
     /* 其他同事：從EX歷史 + ALL_SHIFTS合併 */
     const othersMap={};
@@ -912,7 +1102,7 @@ function rListView(){
     if(hname){const he=document.createElement('span');he.className='lv-hname';he.textContent=hname;dl.appendChild(he);}
     hd.appendChild(dl);
     const right=document.createElement('div');right.className='lv-right';
-    if(mine&&mine!=='X'&&mine!==''){const mt=document.createElement('span');mt.className='lv-my';const isLv=LEAVES.includes(mine);mt.style.background=isLv?'#faeeda':S.bg;mt.style.color=isLv?'#633806':S.t;mt.textContent=mine;right.appendChild(mt);}
+    if(mine&&mine!=='X'&&mine!==''){const mt=document.createElement('span');mt.className='lv-my';const isLv=LEAVES.includes(mine);mt.style.background=isLv?'#faeeda':S.bg;mt.style.color=isLv?'#633806':S.t;mt.textContent=(mine==='特休'?lvDisplay(key(CY,CM,d)):mine);right.appendChild(mt);}
     else{const add=document.createElement('span');add.className='lv-add';add.textContent='+ 填入';right.appendChild(add);}
     hd.appendChild(right);
     hd.onclick=()=>openDP(CY,CM,d);
@@ -1114,7 +1304,7 @@ function updList(){
   arr.forEach(sh=>{
     const il=LEAVES.includes(sh.t);const h=HOLIDAYS[key(sh.y,sh.m,sh.d)];
     const row=document.createElement('div');row.className='sr'+(il?' lv':'');
-    row.innerHTML='<div class="sr-l"><span class="sdot" style="background:'+(il?'#ba7517':S.c)+'"></span><b>'+sh.m+'/'+sh.d+'</b><span style="color:#aaa;font-size:11px">週'+DOW[new Date(sh.y,sh.m-1,sh.d).getDay()]+'</span><span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:'+(il?'#faeeda':S.bg)+';color:'+(il?'#633806':S.t)+'">'+sh.t+'</span>'+(h?'<span style="font-size:10px;color:#c0392b">'+h+'</span>':'')+'</div><span class="del" onclick="delS(\''+sh.k+'\')">移除</span>';
+    row.innerHTML='<div class="sr-l"><span class="sdot" style="background:'+(il?'#ba7517':S.c)+'"></span><b>'+sh.m+'/'+sh.d+'</b><span style="color:#aaa;font-size:11px">週'+DOW[new Date(sh.y,sh.m-1,sh.d).getDay()]+'</span><span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:'+(il?'#faeeda':S.bg)+';color:'+(il?'#633806':S.t)+'">'+( sh.t==='特休'?lvDisplay(sh.k):sh.t)+'</span>'+(h?'<span style="font-size:10px;color:#c0392b">'+h+'</span>':'')+'</div><span class="del" onclick="delS(\''+sh.k+'\')">移除</span>';
     list.appendChild(row);
   });
 }
@@ -1305,7 +1495,8 @@ async function doSubmit(){
   if(rem<0){if(!confirm('特休超額 '+(-rem)+' 天，確定送出嗎？'))return;}
   if(!isPT(me)&&remReq>0){if(!confirm('本月應排班 '+required+' 天，目前只填了 '+work+' 天，還差 '+remReq+' 天。確定要送出嗎？'))return;}
   saveToLS();
-  saveToCloud(); // 背景同步到Vercel KV（不阻塞畫面）
+  // 等雲端儲存完成再跳頁
+  try{await saveToCloud();}catch(e){console.warn('Cloud save failed:',e);}
   goStep(2);
 }
 
