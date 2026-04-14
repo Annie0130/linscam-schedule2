@@ -640,7 +640,7 @@ const EX={
   '2026-4-29':[{s:'宇玟',t:'特休'}],  // 宇玟第10次特休
   '2026-4-30':[{s:'孟庭',t:'12-21'},{s:'宇玟',t:'12-21'},{s:'琳',t:'12-21'}],
   /* ── 5月 ── */
-  '2026-5-1':[{s:'宇玟',t:'12-21'},{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'}],
+  // 5/1勞動節放假，無班表
   '2026-5-2':[{s:'宇玟',t:'12-21'},{s:'琳',t:'12-21'},{s:'Eason',t:'14-21'}],
   '2026-5-3':[{s:'宇玟',t:'12-21'},{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'}],
   '2026-5-4':[{s:'宇玟',t:'12-21'},{s:'孟庭',t:'12-21'},{s:'琳',t:'12-21'}],
@@ -999,7 +999,7 @@ function rV0Cal(){
     if(hname)html+=`<span class="v0-holiday-tag">${hname}</span>`;
     html+='</div>';
 
-    // 顯示所有人的班次
+    // 顯示所有人的班次（只顯示出勤，不顯示特休/病假/事假）
     members.forEach(s=>{
       let t2=null;
       const own=ALL_SHIFTS[s.name]&&ALL_SHIFTS[s.name][k];
@@ -1008,11 +1008,9 @@ function rV0Cal(){
         const ex=EX[k]&&EX[k].find(x=>x.s===s.name);
         if(ex&&ex.t&&ex.t!=='X')t2=ex.t;
       }
-      if(t2){
-        const isLv=LEAVES.includes(t2);
-        const bg=isLv?'#ba7517':s.c;
-        const label=isLv?t2.substring(0,2):s.name+' '+t2;
-        html+=`<span class="v0-chip" style="background:${bg}">${label}</span>`;
+      // 只顯示出勤班次，特休/病假/事假不顯示
+      if(t2&&!LEAVES.includes(t2)){
+        html+=`<span class="v0-chip" style="background:${s.c}">${s.name} ${t2}</span>`;
       }
     });
     html+='</td>';
@@ -1333,13 +1331,15 @@ async function loadFromCloud(){
     const cloud=await resp.json();
     if(cloud[me]){
       if(!ALL_SHIFTS[me])ALL_SHIFTS[me]={};
-      // 雲端資料優先（覆蓋localStorage）
+      // 雲端資料優先覆蓋localStorage
       Object.assign(ALL_SHIFTS[me],cloud[me]);
-      // 同步回localStorage
+      // 同步回localStorage並重新渲染
       saveToLS();
+      updInfo();updList();
+      if(typeof rCal==='function')rCal();
+      if(typeof rListView==='function')rListView();
     }
   }catch(e){
-    // 網路失敗時靜默，使用localStorage資料
     console.log('Cloud load failed, using local data');
   }
 }
@@ -1348,11 +1348,12 @@ async function loadFromCloud(){
 async function saveToCloud(){
   if(!me)return;
   try{
-    await fetch(API_URL,{
+    const resp=await fetch(API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({staff:me,shifts:ALL_SHIFTS[me]||{}})
     });
+    if(!resp.ok)console.warn('Cloud save failed:',resp.status);
   }catch(e){
     console.log('Cloud save failed, data saved locally only');
   }
