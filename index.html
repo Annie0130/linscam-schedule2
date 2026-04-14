@@ -854,7 +854,13 @@ function setView(v){
 function goStep(s){
   step=s;selDay=null;
   ['v0','v1','v-record','v-admin','v2'].forEach(id=>document.getElementById(id).style.display='none');
-  if(s===0){document.getElementById('v0').style.display='';rStaffGrid();rV0Cal();}
+  if(s===0){
+    document.getElementById('v0').style.display='';
+    rStaffGrid();
+    rV0Cal();
+    // 從雲端載入所有人最新班表，更新首頁月曆
+    loadAllFromCloud().then(()=>{rV0Cal();rStaffGrid();});
+  }
   if(s===1){
     document.getElementById('v1').style.display='';
     const S=sc(me);const hn=document.getElementById('hd-name');
@@ -1323,6 +1329,27 @@ function loadFromLS(){
 }
 
 /* 從Vercel KV載入最新資料（進入填寫頁面時呼叫）*/
+async function loadAllFromCloud(){
+  try{
+    const resp=await fetch(API_URL);
+    if(!resp.ok)return;
+    const cloud=await resp.json();
+    // 把所有員工的雲端資料載入ALL_SHIFTS
+    Object.entries(cloud).forEach(([name,shifts])=>{
+      if(!ALL_SHIFTS[name])ALL_SHIFTS[name]={};
+      Object.assign(ALL_SHIFTS[name],shifts);
+    });
+    // 同步回localStorage
+    try{
+      const existing=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+      Object.assign(existing,cloud);
+      localStorage.setItem(LS_KEY,JSON.stringify(existing));
+    }catch(e){}
+  }catch(e){
+    console.log('Cloud load all failed');
+  }
+}
+
 async function loadFromCloud(){
   if(!me)return;
   try{
@@ -1672,7 +1699,7 @@ function rDone(){
 function swTab(t,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');document.getElementById('tab-s').style.display=t==='s'?'':'none';document.getElementById('tab-e').style.display=t==='e'?'':'none';}
 function cpExp(){navigator.clipboard.writeText(document.getElementById('exparea').textContent).then(()=>{const b=event.target;b.textContent='已複製！';setTimeout(()=>b.textContent='複製文字',2000);});}
 
-rStaffGrid();rV0Cal();
+rStaffGrid();rV0Cal();loadAllFromCloud().then(()=>{rV0Cal();rStaffGrid();});
 </script>
 </body>
 </html>
