@@ -6,8 +6,8 @@
 <title>林相攝影 排班填寫</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a18;min-height:100vh;max-width:480px;margin:0 auto;position:relative;box-sizing:border-box}*,*::before,*::after{box-sizing:border-box}
-.hd{background:#fff;border-bottom:1px solid #e0dfd6;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a18;min-height:100vh;max-width:480px;margin:0 auto;overflow-x:hidden}
+.hd{background:#fff;border-bottom:1px solid #e0dfd6;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;width:100%}
 .hd-logo{font-size:15px;font-weight:600}
 .hd-logo small{font-size:11px;color:#888;font-weight:400;margin-left:6px}
 .hd-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -64,8 +64,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .notice-board-input{width:100%;font-size:12px;padding:6px 8px;border:1px solid #f0c040;border-radius:6px;background:#fff;color:#1a1a18;resize:vertical;min-height:60px;font-family:inherit}
 .notice-board-input:focus{outline:none;border-color:#ba7517}
 /* 首頁全員月曆 */
-.v0-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.v0-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.v0-wrap{width:100%;overflow-x:hidden}
+.v0-table{width:100%;border-collapse:collapse;table-layout:fixed;max-width:100%}
 .v0-table th{background:#f5f5f0;padding:6px 2px;text-align:center;font-size:11px;font-weight:700;color:#666;border:1px solid #e8e8e0}
 .v0-table th.we{color:#c0392b}
 .v0-td{border:1px solid #e8e8e0;padding:3px 3px;vertical-align:top;background:#fff;height:54px}
@@ -83,8 +83,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cal-mnav{width:32px;height:32px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#555}
 .cal-mnav:hover{background:#f0f0eb}
 /* calendar */
-.cal-wrap{padding:12px 0 8px}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-wrap{padding:12px 8px 8px;width:100%}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;width:100%}
 .ch{text-align:center;font-size:11px;font-weight:600;color:#888;padding:4px 0}
 .ch.we{color:#c0392b}
 .cc{background:#fff;border:1px solid #ececec;border-radius:7px;min-height:72px;padding:3px;cursor:pointer;transition:all .15s}
@@ -296,6 +296,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
   <div class="s0-wrap">
+    <!-- 首頁公告欄 -->
+    <div class="notice-board" style="margin-bottom:8px">
+      <div class="notice-board-hd">
+        <span class="notice-board-title">📢 本月公告</span>
+        <button class="notice-board-edit" id="v0-nb-edit-btn" onclick="toggleV0NoticeEdit()">✏️ 編輯</button>
+      </div>
+      <div class="notice-board-content" id="v0-nb-content">載入中...</div>
+      <div id="v0-nb-edit-wrap" style="display:none">
+        <div style="font-size:11px;color:#7a5800;margin-bottom:4px">節日資訊自動帶入，以下可填寫本月公告事項：</div>
+        <div class="notice-board-holiday" id="v0-nb-holiday-preview"></div>
+        <textarea class="notice-board-input" id="v0-nb-input" placeholder="輸入本月公告、重要事項..."></textarea>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="btn sm p" onclick="saveV0Notice()">儲存</button>
+          <button class="btn sm" onclick="toggleV0NoticeEdit()">取消</button>
+        </div>
+      </div>
+    </div>
     <!-- 當月全員日曆 -->
     <div id="v0-cal-wrap" style="overflow-x:auto;margin-bottom:12px">
       <div id="v0-cal"></div>
@@ -901,7 +918,7 @@ function goStep(s){
     document.getElementById('v0').style.display='';
     rStaffGrid();
     rV0Cal();
-    // 從雲端載入所有人最新班表，更新首頁月曆
+    loadV0Notice();
     loadAllFromCloud().then(()=>{rV0Cal();rStaffGrid();});
   }
   if(s===1){
@@ -1007,7 +1024,7 @@ function chV0M(d){
   if(v0M>12){v0M=1;v0Y++;}
   if(v0M<1){v0M=12;v0Y--;}
   document.getElementById('v0-month-lbl').textContent=v0Y+'年'+v0M+'月';
-  rV0Cal();
+  rV0Cal();loadV0Notice();
 }
 
 function rV0Cal(){
@@ -1073,6 +1090,49 @@ function rV0Cal(){
   for(let i=0;i<remaining;i++) html+='<td class="v0-td out"></td>';
   html+='</tr></tbody></table></div>';
   wrap.innerHTML=html;
+}
+
+/* ── 首頁公告欄 ── */
+function loadV0Notice(){
+  const holiday=MONTH_HOLIDAYS[v0M]||'';
+  const key=getNoticeKey(v0Y,v0M);
+  const custom=localStorage.getItem(key)||'';
+  const el=document.getElementById('v0-nb-content');
+  if(!el)return;
+  let display='';
+  if(holiday)display+=holiday;
+  if(custom){if(display)display+='\n──────────\n';display+=custom;}
+  if(!display)display='（點右上角 ✏️ 新增本月公告）';
+  el.textContent=display;
+  const hp=document.getElementById('v0-nb-holiday-preview');
+  if(hp)hp.textContent=holiday?'🗓 '+holiday:'';
+  const inp=document.getElementById('v0-nb-input');
+  if(inp)inp.value=custom;
+}
+
+function toggleV0NoticeEdit(){
+  const editWrap=document.getElementById('v0-nb-edit-wrap');
+  const contentEl=document.getElementById('v0-nb-content');
+  const btn=document.getElementById('v0-nb-edit-btn');
+  const isOpen=editWrap.style.display==='block';
+  if(!isOpen){
+    editWrap.style.display='block';
+    contentEl.style.display='none';
+    btn.textContent='✕ 關閉';
+    setTimeout(()=>document.getElementById('v0-nb-input').focus(),50);
+  }else{
+    editWrap.style.display='none';
+    contentEl.style.display='';
+    btn.textContent='✏️ 編輯';
+  }
+}
+
+function saveV0Notice(){
+  const key=getNoticeKey(v0Y,v0M);
+  const val=document.getElementById('v0-nb-input').value.trim();
+  localStorage.setItem(key,val);
+  loadV0Notice();
+  toggleV0NoticeEdit();
 }
 
 function rStaffGrid(){
@@ -1741,7 +1801,7 @@ function rDone(){
 function swTab(t,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');document.getElementById('tab-s').style.display=t==='s'?'':'none';document.getElementById('tab-e').style.display=t==='e'?'':'none';}
 function cpExp(){navigator.clipboard.writeText(document.getElementById('exparea').textContent).then(()=>{const b=event.target;b.textContent='已複製！';setTimeout(()=>b.textContent='複製文字',2000);});}
 
-rStaffGrid();rV0Cal();loadAllFromCloud().then(()=>{rV0Cal();rStaffGrid();});
+rStaffGrid();rV0Cal();loadV0Notice();loadAllFromCloud().then(()=>{rV0Cal();rStaffGrid();});
 </script>
 </body>
 </html>
