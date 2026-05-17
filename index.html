@@ -707,28 +707,46 @@ function getMyShift(k){
 /* 計算某個日期是員工第幾次特休（含EX歷史）*/
 function getLvIndex(targetKey,name){
   name=name||me;
-  // 蒐集所有特休日期（EX歷史 + 自填，排除__DEL__）
+  // 計算targetKey所在的年度區間（入職週年日為基準）
+  const s=STAFF.find(x=>x.name===name);
+  const hired=s&&s.hired;
+  let periodStart=null,periodEnd=null;
+  if(hired){
+    const h=new Date(hired);
+    const p=targetKey.split('-');
+    const refDate=new Date(+p[0],+p[1]-1,+p[2]);
+    let annivYear=refDate.getFullYear();
+    let anniv=new Date(annivYear,h.getMonth(),h.getDate());
+    if(anniv>refDate)anniv=new Date(annivYear-1,h.getMonth(),h.getDate());
+    periodStart=anniv;
+    periodEnd=new Date(anniv.getFullYear()+1,h.getMonth(),h.getDate());
+  }
+  function inMyPeriod(k){
+    if(!periodStart)return true;
+    const p=k.split('-');
+    const d=new Date(+p[0],+p[1]-1,+p[2]);
+    return d>=periodStart&&d<periodEnd;
+  }
+  // 只蒐集當前年度內的特休日期
   const allLvDates=[];
-  // EX歷史特休
   Object.entries(EX).forEach(([k,arr])=>{
-    if(k===targetKey)return; // 先不算目標日
+    if(k===targetKey)return;
+    if(!inMyPeriod(k))return;
     const mine=arr.find(x=>x.s===name);
     if(mine&&mine.t==='特休'){
       const ov=ALL_SHIFTS[name]&&ALL_SHIFTS[name][k];
-      if(ov==='__DEL__')return; // 已刪除
+      if(ov==='__DEL__')return;
       allLvDates.push(k);
     }
   });
-  // 自填特休
   Object.entries(ALL_SHIFTS[name]||{}).forEach(([k,t])=>{
     if(k===targetKey)return;
+    if(!inMyPeriod(k))return;
     if(t==='特休')allLvDates.push(k);
   });
-  // 排序
   allLvDates.sort();
-  // 目標日的排名
   const insertAt=allLvDates.filter(d=>d<targetKey).length;
-  return insertAt+1; // 第幾次（1起算）
+  return insertAt+1;
 }
 /* 顯示用的特休文字，加上第N次備註 */
 function lvDisplay(k,name){
