@@ -813,23 +813,48 @@ function getStats(name,y,m){
   });
   const arr=Object.entries(combined);
   const work=arr.filter(([,t])=>!LEAVES.includes(t));
-  /* 計算特休使用次數：EX歷史（全年） + 本次自填（當月）*/
-  // EX歷史特休（全年累計，排除已刪除的）
-  const exLv=Object.entries(EX).filter(([k,arr])=>{
-    const ex=arr.find(x=>x.s===name);
+  /* 計算特休使用次數：只算「當前年度」（入職週年日到下個週年日）
+     每年度獨立計算，不累計 */
+  const staffInfo=STAFF.find(x=>x.name===name);
+  const hired=staffInfo&&staffInfo.hired;
+  
+  // 計算當前年度的起訖日
+  let periodStart=null,periodEnd=null;
+  if(hired){
+    const h=new Date(hired);
+    // 找到以排班月份為基準的當前年度
+    const refDate=new Date(y,m-1,1);
+    let annivYear=refDate.getFullYear();
+    let anniv=new Date(annivYear,h.getMonth(),h.getDate());
+    // 如果入職週年日在refDate之後，退回前一年
+    if(anniv>refDate)anniv=new Date(annivYear-1,h.getMonth(),h.getDate());
+    periodStart=anniv;
+    periodEnd=new Date(anniv.getFullYear()+1,h.getMonth(),h.getDate());
+  }
+  
+  function inPeriod(k){
+    if(!periodStart)return true;
+    const p=k.split('-');
+    const d=new Date(+p[0],+p[1]-1,+p[2]);
+    return d>=periodStart&&d<periodEnd;
+  }
+  
+  // EX歷史特休（只算當前年度內，排除已刪除的）
+  const exLv=Object.entries(EX).filter(([k,arr2])=>{
+    if(!inPeriod(k))return false;
+    const ex=arr2.find(x=>x.s===name);
     if(!ex||ex.t!=='特休')return false;
-    // 如果員工自填刪除了這一天，不算
     const ov=ALL_SHIFTS[name]&&ALL_SHIFTS[name][k];
     if(ov==='__DEL__')return false;
     return true;
   }).length;
-  // 本次自填特休（當月）
+  // 本次自填特休（只算當前年度內）
   const ownLv=Object.entries(own).filter(([k,t])=>{
-    const p=k.split('-');return+p[0]===y&&+p[1]===m&&t==='特休';
+    return inPeriod(k)&&t==='特休';
   }).length;
   const totalLv=exLv+ownLv;
   const quota=getQuota(name,y,m);
-  const usedBefore=0; // EX歷史已全部計算在exLv裡
+  const usedBefore=0;
   const rem=quota-totalLv;
   const required=getReq(y,m);
   const bd={};work.forEach(([,t])=>{bd[t]=(bd[t]||0)+1;});
