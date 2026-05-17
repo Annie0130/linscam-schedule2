@@ -1168,7 +1168,6 @@ function updInfo(){
     strip.innerHTML=`
       <div class="ic"><div class="ic-l">本月出勤</div><div class="ic-v">${work}</div><div class="ic-u">天</div></div>
       <div class="ic warn"><div class="ic-l">本月放假${lvThis>0?'（含特休）':''}</div><div class="ic-v">${daysOff}</div><div class="ic-u">天</div></div>
-      <div class="ic"><div class="ic-l">本月出勤</div><div class="ic-v">${work}</div><div class="ic-u">天</div></div>
       <div class="ic ${lvCls}"><div class="ic-l">${lvLbl}${nextQuotaNote}</div><div class="ic-v">${lvV}</div><div class="ic-u">${lvU}</div></div>
       <div class="ic"><div class="ic-l">本月特休</div><div class="ic-v">${lvThis}</div><div class="ic-u">天</div></div>`;
   }else{
@@ -1195,7 +1194,7 @@ function updInfo(){
   else if(rem<0)alerts.push({cls:'a-danger',msg:'⚠ 特休超額 '+(-rem)+' 天，請調整後再送出！'});
   else if(quota===0)alerts.push({cls:'a-warn',msg:'ℹ 年資未滿6個月，目前無特休天數。'});
   else if(rem===0&&totalUsed>0)alerts.push({cls:'a-warn',msg:'⚠ 特休已全部用完（共'+quota+'天）。'});
-  else if(me==='宇玟')alerts.push({cls:'a-info',msg:'ℹ 宇玟特休7天，歷史已用'+usedBefore+'天，剩餘 '+rem+' 天。每年5月重新起算。'});
+  else if(me==='宇玟'&&rem>=0)alerts.push({cls:'a-info',msg:'ℹ 宇玟特休共'+quota+'天，本年度已用'+totalUsed+'天，剩餘 '+rem+' 天。每年5月重新起算。'});
   if(!pt){
     if(remReq<0)alerts.push({cls:'a-danger',msg:'⚠ 出勤天數超過本月應排班天數（'+required+'天）。'});
     else if(remReq===0&&work>0)alerts.push({cls:'a-ok',msg:'✓ 本月排班天數已達標（'+required+'天）！'});
