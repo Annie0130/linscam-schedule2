@@ -969,25 +969,39 @@ let noticeEditing=false;
 
 function getNoticeKey(y,m){return NOTICE_KEY+'_'+y+'_'+m;}
 
-function loadNotice(){
-  const key=getNoticeKey(CY,CM);
-  const custom=localStorage.getItem(key)||'';
+async function loadNotice(){
   const holiday=MONTH_HOLIDAYS[CM]||'';
-  const contentEl=document.getElementById('nb-content');
+  // 先從localStorage顯示（快速）
+  const lsKey=getNoticeKey(CY,CM);
+  let custom=localStorage.getItem(lsKey)||'';
+  _renderNotice('nb-content','nb-holiday-preview','nb-input',holiday,custom);
+  // 再從雲端讀取最新（同步到其他設備）
+  try{
+    const resp=await fetch(API_URL+'?type=notice');
+    if(resp.ok){
+      const data=await resp.json();
+      const cloudVal=data[CY+'-'+CM]||'';
+      // 如果雲端有值，更新localStorage和畫面
+      if(cloudVal!==custom){
+        localStorage.setItem(lsKey,cloudVal);
+        custom=cloudVal;
+        _renderNotice('nb-content','nb-holiday-preview','nb-input',holiday,custom);
+      }
+    }
+  }catch(e){}
+}
+
+function _renderNotice(contentId,holidayId,inputId,holiday,custom){
+  const contentEl=document.getElementById(contentId);
   if(!contentEl)return;
-  // 合併節日 + 自訂公告顯示在同一欄位
   let display='';
   if(holiday)display+=holiday;
-  if(custom){
-    if(display)display+='\n──────────\n';
-    display+=custom;
-  }
+  if(custom){if(display)display+='\n──────────\n';display+=custom;}
   if(!display)display='（點右上角 ✏️ 新增本月公告）';
   contentEl.textContent=display;
-  // 更新編輯模式的節日預覽和textarea
-  const hp=document.getElementById('nb-holiday-preview');
+  const hp=document.getElementById(holidayId);
   if(hp)hp.textContent=holiday?'🗓 '+holiday:'';
-  const inp=document.getElementById('nb-input');
+  const inp=document.getElementById(inputId);
   if(inp)inp.value=custom;
 }
 
@@ -1009,10 +1023,18 @@ function toggleNoticeEdit(){
   }
 }
 
-function saveNotice(){
-  const key=getNoticeKey(CY,CM);
+async function saveNotice(){
+  const lsKey=getNoticeKey(CY,CM);
   const val=document.getElementById('nb-input').value.trim();
-  localStorage.setItem(key,val);
+  localStorage.setItem(lsKey,val);
+  // 同步到雲端
+  try{
+    await fetch(API_URL+'?type=notice',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({year_month:CY+'-'+CM,content:val})
+    });
+  }catch(e){}
   loadNotice();
   toggleNoticeEdit();
 }
@@ -1093,21 +1115,22 @@ function rV0Cal(){
 }
 
 /* ── 首頁公告欄 ── */
-function loadV0Notice(){
+async function loadV0Notice(){
   const holiday=MONTH_HOLIDAYS[v0M]||'';
-  const key=getNoticeKey(v0Y,v0M);
-  const custom=localStorage.getItem(key)||'';
-  const el=document.getElementById('v0-nb-content');
-  if(!el)return;
-  let display='';
-  if(holiday)display+=holiday;
-  if(custom){if(display)display+='\n──────────\n';display+=custom;}
-  if(!display)display='（點右上角 ✏️ 新增本月公告）';
-  el.textContent=display;
-  const hp=document.getElementById('v0-nb-holiday-preview');
-  if(hp)hp.textContent=holiday?'🗓 '+holiday:'';
-  const inp=document.getElementById('v0-nb-input');
-  if(inp)inp.value=custom;
+  const lsKey=getNoticeKey(v0Y,v0M);
+  let custom=localStorage.getItem(lsKey)||'';
+  _renderNotice('v0-nb-content','v0-nb-holiday-preview','v0-nb-input',holiday,custom);
+  try{
+    const resp=await fetch(API_URL+'?type=notice');
+    if(resp.ok){
+      const data=await resp.json();
+      const cloudVal=data[v0Y+'-'+v0M]||'';
+      if(cloudVal!==custom){
+        localStorage.setItem(lsKey,cloudVal);
+        _renderNotice('v0-nb-content','v0-nb-holiday-preview','v0-nb-input',holiday,cloudVal);
+      }
+    }
+  }catch(e){}
 }
 
 function toggleV0NoticeEdit(){
@@ -1127,10 +1150,17 @@ function toggleV0NoticeEdit(){
   }
 }
 
-function saveV0Notice(){
-  const key=getNoticeKey(v0Y,v0M);
+async function saveV0Notice(){
+  const lsKey=getNoticeKey(v0Y,v0M);
   const val=document.getElementById('v0-nb-input').value.trim();
-  localStorage.setItem(key,val);
+  localStorage.setItem(lsKey,val);
+  try{
+    await fetch(API_URL+'?type=notice',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({year_month:v0Y+'-'+v0M,content:val})
+    });
+  }catch(e){}
   loadV0Notice();
   toggleV0NoticeEdit();
 }
