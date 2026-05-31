@@ -893,7 +893,8 @@ function getStats(name,y,m){
   const rem=quota-totalLv;
   const required=getReq(y,m);
   const bd={};work.forEach(([,t])=>{bd[t]=(bd[t]||0)+1;});
-  return{work:work.length,lvThis:ownLv,quota,usedBefore:exLv,totalUsed:totalLv,rem,bd,required,remReq:required-work.length};
+  const remReq=required-work.length-ownLv; // 特休天數也算完成排班
+  return{work:work.length,lvThis:ownLv,quota,usedBefore:exLv,totalUsed:totalLv,rem,bd,required,remReq};
 }
 
 function chM(d){CM+=d;if(CM>12){CM=1;CY++;}if(CM<1){CM=12;CY--;}
@@ -1419,9 +1420,15 @@ function openDP(y,m,d){
     b.textContent=lv;
     b.onclick=()=>{
       if(lv==='特休'&&quota===0){alert('年資未滿6個月，目前無特休天數。');return;}
-      /* 超額時只是提示，不攔截，讓員工自行決定 */
       if(lv==='特休'&&isOver){
         if(!confirm('特休已用完（共'+quota+'天），確定繼續新增嗎？'))return;
+      }
+      // 每月假日上限3天（特休+病假+事假合計）
+      const monthLeaves=Object.entries(getMonthLeaves()).length;
+      const curShift=getOwnShift(key(selDay.y,selDay.m,selDay.d));
+      const isNewLeave=!curShift||!LEAVES.includes(curShift);
+      if(isNewLeave&&monthLeaves>=3){
+        if(!confirm('本月假日已達3天上限，確定還要繼續新增嗎？'))return;
       }
       setShift(lv);
     };
@@ -1530,6 +1537,29 @@ function clearMyLS(){
     alert('已清除！');
   }catch(e){}
 }
+/* 取得當月所有假日（特休+病假+事假）的key */
+function getMonthLeaves(){
+  const result={};
+  // EX歷史假日
+  Object.entries(EX).forEach(([k,arr])=>{
+    const p=k.split('-');
+    if(+p[0]!==selDay.y||+p[1]!==selDay.m)return;
+    const mine=arr.find(x=>x.s===me);
+    if(mine&&LEAVES.includes(mine.t)){
+      const ov=ALL_SHIFTS[me]&&ALL_SHIFTS[me][k];
+      if(ov!=='__DEL__')result[k]=mine.t;
+    }
+  });
+  // 自填假日
+  Object.entries(ALL_SHIFTS[me]||{}).forEach(([k,t])=>{
+    const p=k.split('-');
+    if(+p[0]!==selDay.y||+p[1]!==selDay.m)return;
+    if(LEAVES.includes(t))result[k]=t;
+    else if(t==='__DEL__')delete result[k];
+  });
+  return result;
+}
+
 function setShift(t){
   const k=key(selDay.y,selDay.m,selDay.d);
   if(!ALL_SHIFTS[me])ALL_SHIFTS[me]={};
