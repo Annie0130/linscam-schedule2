@@ -1423,12 +1423,24 @@ function openDP(y,m,d){
       if(lv==='特休'&&isOver){
         if(!confirm('特休已用完（共'+quota+'天），確定繼續新增嗎？'))return;
       }
-      // 每月假日上限3天（特休+病假+事假合計）
-      const monthLeaves=Object.entries(getMonthLeaves()).length;
-      const curShift=getOwnShift(key(selDay.y,selDay.m,selDay.d));
-      const isNewLeave=!curShift||!LEAVES.includes(curShift);
-      if(isNewLeave&&monthLeaves>=3){
-        if(!confirm('本月假日已達3天上限，確定還要繼續新增嗎？'))return;
+      // 每月假日規則檢查
+      const k2=key(selDay.y,selDay.m,selDay.d);
+      const curShift=getOwnShift(k2);
+      const isNewLeave=LEAVES.includes(lv)&&(!curShift||!LEAVES.includes(curShift));
+      if(isNewLeave){
+        const allLeaves=getMonthLeaves();
+        const leaveCount=Object.keys(allLeaves).length;
+        // 禮拜六限制：最多2次
+        const dow=new Date(selDay.y,selDay.m-1,selDay.d).getDay();
+        if(dow===6){
+          const satLeaves=Object.keys(allLeaves).filter(k=>{
+            const p=k.split('-');
+            return new Date(+p[0],+p[1]-1,+p[2]).getDay()===6;
+          }).length;
+          if(satLeaves>=2){alert('禮拜六假日每月最多2次，本月已達上限！');return;}
+        }
+        // 每月假日上限3天
+        if(leaveCount>=3){alert('本月假日已達3天上限（特休+病假+事假合計），無法繼續新增！');return;}
       }
       setShift(lv);
     };
@@ -1537,6 +1549,29 @@ function clearMyLS(){
     alert('已清除！');
   }catch(e){}
 }
+/* 送出時用：取得當月所有假日（不依賴selDay）*/
+function getMonthLeavesForSubmit(){
+  const result={};
+  // EX歷史假日
+  Object.entries(EX).forEach(([k,arr])=>{
+    const p=k.split('-');
+    if(+p[0]!==CY||+p[1]!==CM)return;
+    const mine=arr.find(x=>x.s===me);
+    if(mine&&LEAVES.includes(mine.t)){
+      const ov=ALL_SHIFTS[me]&&ALL_SHIFTS[me][k];
+      if(ov!=='__DEL__')result[k]=mine.t;
+    }
+  });
+  // 自填假日
+  Object.entries(ALL_SHIFTS[me]||{}).forEach(([k,t])=>{
+    const p=k.split('-');
+    if(+p[0]!==CY||+p[1]!==CM)return;
+    if(LEAVES.includes(t))result[k]=t;
+    else if(t==='__DEL__')delete result[k];
+  });
+  return result;
+}
+
 /* 取得當月所有假日（特休+病假+事假）的key */
 function getMonthLeaves(){
   const result={};
@@ -1819,6 +1854,25 @@ async function startNotionImport(){
 /* ── submit ── */
 async function doSubmit(){
   const{rem,work,required,remReq}=getStats();
+  
+  // 送出前檢查假日規則（硬性，不能送出）
+  if(selDay){} // 確保selDay存在（借用一下）
+  const allLv=getMonthLeavesForSubmit();
+  const leaveCount=Object.keys(allLv).length;
+  if(leaveCount>3){
+    alert('❌ 本月假日共 '+leaveCount+' 天，超過3天上限，請調整後再送出！');
+    return;
+  }
+  // 禮拜六假日不能超過2次
+  const satCount=Object.keys(allLv).filter(k=>{
+    const p=k.split('-');
+    return new Date(+p[0],+p[1]-1,+p[2]).getDay()===6;
+  }).length;
+  if(satCount>2){
+    alert('❌ 禮拜六假日共 '+satCount+' 次，超過2次上限，請調整後再送出！');
+    return;
+  }
+  
   if(rem<0){if(!confirm('特休超額 '+(-rem)+' 天，確定送出嗎？'))return;}
   if(!isPT(me)&&remReq>0){if(!confirm('本月應排班 '+required+' 天，目前只填了 '+work+' 天，還差 '+remReq+' 天。確定要送出嗎？'))return;}
   saveToLS();
