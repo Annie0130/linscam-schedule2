@@ -281,15 +281,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn.dt:hover{background:#fdecea}
 .btn.full{flex:1}
 .btn.outline-blue{color:#185fa5;border-color:#85b7eb;background:#e6f1fb}
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.login-card{background:#fff;border:1px solid #e0dfd6;border-radius:14px;padding:22px 18px;width:100%;max-width:360px}
+.login-card h1{font-size:18px;font-weight:700;margin-bottom:4px}
+.login-card .login-sub{font-size:12px;color:#888;margin-bottom:12px}
+.login-card p{font-size:13px;color:#444;line-height:1.6;margin-bottom:14px}
+.login-card label{font-size:12px;font-weight:600;color:#444;display:block;margin-bottom:6px}
+.login-card input{width:100%;font-size:16px;padding:10px 12px;border:1px solid #ddd;border-radius:9px;margin-bottom:8px;background:#fff;color:#1a1a18}
+.login-card input:focus{outline:none;border-color:#185fa5}
+.login-err{font-size:12px;color:#c0392b;margin-bottom:8px;line-height:1.5}
+.btn:disabled{opacity:.6;cursor:default}
 </style>
 </head>
 <body>
 
+<!-- ══ 員工登入 ══ -->
+<div id="login-screen" class="login-screen">
+  <form class="login-card" method="post" action="#" onsubmit="return staffLogin(event)">
+    <h1>林相攝影</h1>
+    <div class="login-sub">員工排班系統</div>
+    <p>請輸入員工密碼。登入後才能查看與填寫班表。</p>
+    <label for="staff-pw">員工密碼</label>
+    <input type="password" id="staff-pw" name="password" autocomplete="current-password" placeholder="密碼" spellcheck="false">
+    <div id="login-err" class="login-err" style="display:none"></div>
+    <button class="btn p full" id="login-btn" type="submit">進入</button>
+  </form>
+</div>
+
 <!-- ══ STEP 0 ══ -->
-<div id="v0">
+<div id="v0" style="display:none">
   <div class="hd">
     <div class="hd-logo">林相攝影 <small>員工排班系統</small></div>
     <div class="hd-right" id="v0-month-nav" style="display:flex;align-items:center;gap:6px">
+      <button class="btn-link" type="button" onclick="staffLogout()">登出</button>
       <button class="btn-link" onclick="chV0M(-1)" style="font-size:20px;padding:0 6px">‹</button>
       <span id="v0-month-lbl" style="font-size:13px;font-weight:700;color:#1a1a18;min-width:80px;text-align:center"></span>
       <button class="btn-link" onclick="chV0M(1)" style="font-size:20px;padding:0 6px">›</button>
@@ -332,6 +356,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="hd-right">
       <span class="hd-staff" id="hd-name"></span>
       <button class="btn-link" onclick="goStep(0)">← 首頁</button>
+      <button class="btn-link" type="button" onclick="staffLogout()">登出</button>
       <button class="btn-link" onclick="showMyRecord()">我的記錄</button>
     </div>
   </div>
@@ -978,7 +1003,7 @@ async function loadNotice(){
   _renderNotice('nb-content','nb-holiday-preview','nb-input',holiday,custom);
   // 再從雲端讀取最新（同步到其他設備）
   try{
-    const resp=await fetch(API_URL+'?type=notice');
+    const resp=await apiFetch(API_URL+'?type=notice');
     if(resp.ok){
       const data=await resp.json();
       const cloudVal=data[CY+'-'+CM]||'';
@@ -1030,12 +1055,14 @@ async function saveNotice(){
   localStorage.setItem(lsKey,val);
   // 同步到雲端
   try{
-    await fetch(API_URL+'?type=notice',{
+    await apiFetch(API_URL+'?type=notice',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({year_month:CY+'-'+CM,content:val})
     });
-  }catch(e){}
+  }catch(e){
+    if(e&&e.auth)return;
+  }
   loadNotice();
   toggleNoticeEdit();
 }
@@ -1122,7 +1149,7 @@ async function loadV0Notice(){
   let custom=localStorage.getItem(lsKey)||'';
   _renderNotice('v0-nb-content','v0-nb-holiday-preview','v0-nb-input',holiday,custom);
   try{
-    const resp=await fetch(API_URL+'?type=notice');
+    const resp=await apiFetch(API_URL+'?type=notice');
     if(resp.ok){
       const data=await resp.json();
       const cloudVal=data[v0Y+'-'+v0M]||'';
@@ -1156,12 +1183,14 @@ async function saveV0Notice(){
   const val=document.getElementById('v0-nb-input').value.trim();
   localStorage.setItem(lsKey,val);
   try{
-    await fetch(API_URL+'?type=notice',{
+    await apiFetch(API_URL+'?type=notice',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({year_month:v0Y+'-'+v0M,content:val})
     });
-  }catch(e){}
+  }catch(e){
+    if(e&&e.auth)return;
+  }
   loadV0Notice();
   toggleV0NoticeEdit();
 }
@@ -1454,8 +1483,105 @@ function openDP(y,m,d){
 
 /* ════════════════════════════
    儲存策略：localStorage（即時）+ Vercel KV（雲端）
+   雲端讀寫需要先登入。登入後由伺服器設定 httpOnly cookie。
 ════════════════════════════ */
 const API_URL='/api/shifts'; // Vercel API 路徑
+let loggedIn=false;
+
+function showLogin(message){
+  loggedIn=false;
+  ['v0','v1','v-record','v-admin','v2'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display='none';
+  });
+  const screen=document.getElementById('login-screen');
+  if(screen)screen.style.display='flex';
+  const err=document.getElementById('login-err');
+  if(err){
+    if(message){err.textContent=message;err.style.display='';}
+    else{err.textContent='';err.style.display='none';}
+  }
+  const btn=document.getElementById('login-btn');
+  if(btn){btn.disabled=false;btn.textContent='進入';}
+  setTimeout(()=>{const el=document.getElementById('staff-pw');if(el)el.focus();},50);
+}
+
+function enterApp(){
+  loggedIn=true;
+  const screen=document.getElementById('login-screen');
+  if(screen)screen.style.display='none';
+  const pw=document.getElementById('staff-pw');
+  if(pw)pw.value='';
+  goStep(0);
+}
+
+function staffLogin(ev){
+  if(ev&&ev.preventDefault)ev.preventDefault();
+  submitStaffLogin();
+  return false;
+}
+
+async function submitStaffLogin(){
+  const input=document.getElementById('staff-pw');
+  const btn=document.getElementById('login-btn');
+  const err=document.getElementById('login-err');
+  const password=input?input.value:'';
+  if(btn){btn.disabled=true;btn.textContent='確認中...';}
+  if(err)err.style.display='none';
+  try{
+    const resp=await fetch(API_URL+'?type=login',{
+      method:'POST',
+      credentials:'same-origin',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password})
+    });
+    if(resp.ok){
+      enterApp();
+      return;
+    }
+    if(resp.status===503){
+      showLogin('系統還沒設定員工密碼，請先聯絡管理員。');
+      return;
+    }
+    showLogin('密碼不對，請再試一次');
+  }catch(e){
+    showLogin('連線失敗，請稍後再試');
+  }
+}
+
+async function staffLogout(){
+  try{
+    await fetch(API_URL+'?type=logout',{method:'POST',credentials:'same-origin',cache:'no-store'});
+  }catch(e){}
+  showLogin();
+}
+
+async function boot(){
+  try{
+    const resp=await fetch(API_URL+'?type=session',{credentials:'same-origin',cache:'no-store'});
+    if(resp.ok){enterApp();return;}
+    if(resp.status===503){showLogin('系統還沒設定員工密碼，請先聯絡管理員。');return;}
+  }catch(e){}
+  showLogin();
+}
+
+async function apiFetch(url, opts){
+  const resp=await fetch(url, Object.assign({}, opts||{}, {credentials:'same-origin', cache:'no-store'}));
+  if(resp.status===401){
+    const err=new Error('unauthorized');
+    err.auth=true;
+    if(loggedIn)showLogin('登入已過期，請重新輸入密碼');
+    throw err;
+  }
+  if(resp.status===503){
+    const err=new Error('unconfigured');
+    err.auth=true;
+    showLogin('系統還沒設定員工密碼，請先聯絡管理員。');
+    throw err;
+  }
+  return resp;
+}
 
 /* 儲存到localStorage（即時，不需網路）*/
 function saveToLS(){
@@ -1482,7 +1608,7 @@ function loadFromLS(){
 /* 從Vercel KV載入最新資料（進入填寫頁面時呼叫）*/
 async function loadAllFromCloud(){
   try{
-    const resp=await fetch(API_URL);
+    const resp=await apiFetch(API_URL);
     if(!resp.ok)return;
     const cloud=await resp.json();
     // 把所有員工的雲端資料載入ALL_SHIFTS
@@ -1504,7 +1630,7 @@ async function loadAllFromCloud(){
 async function loadFromCloud(){
   if(!me)return;
   try{
-    const resp=await fetch(API_URL);
+    const resp=await apiFetch(API_URL);
     if(!resp.ok)return;
     const cloud=await resp.json();
     if(cloud[me]){
@@ -1526,13 +1652,14 @@ async function loadFromCloud(){
 async function saveToCloud(){
   if(!me)return;
   try{
-    const resp=await fetch(API_URL,{
+    const resp=await apiFetch(API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({staff:me,shifts:ALL_SHIFTS[me]||{}})
     });
     if(!resp.ok)console.warn('Cloud save failed:',resp.status);
   }catch(e){
+    if(e&&e.auth)throw e;
     console.log('Cloud save failed, data saved locally only');
   }
 }
@@ -1722,7 +1849,7 @@ async function showAdmin(){
   document.getElementById('adm-lbl').textContent=admY+'年 '+MN[admM-1];
   // 從雲端載入所有員工的最新班表
   try{
-    const resp=await fetch(API_URL);
+    const resp=await apiFetch(API_URL);
     if(resp.ok){
       const cloud=await resp.json();
       Object.entries(cloud).forEach(([name,shifts])=>{
@@ -1730,7 +1857,9 @@ async function showAdmin(){
         Object.assign(ALL_SHIFTS[name],shifts);
       });
     }
-  }catch(e){}
+  }catch(e){
+    if(e&&e.auth)return;
+  }
   rAdminView();
 }
 function rAdminView(){
@@ -1877,7 +2006,10 @@ async function doSubmit(){
   if(!isPT(me)&&remReq>0){if(!confirm('本月應排班 '+required+' 天，目前只填了 '+work+' 天，還差 '+remReq+' 天。確定要送出嗎？'))return;}
   saveToLS();
   // 等雲端儲存完成再跳頁
-  try{await saveToCloud();}catch(e){console.warn('Cloud save failed:',e);}
+  try{await saveToCloud();}catch(e){
+    if(e&&e.auth)return;
+    console.warn('Cloud save failed:',e);
+  }
   goStep(2);
 }
 
@@ -1915,7 +2047,7 @@ function rDone(){
 function swTab(t,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');document.getElementById('tab-s').style.display=t==='s'?'':'none';document.getElementById('tab-e').style.display=t==='e'?'':'none';}
 function cpExp(){navigator.clipboard.writeText(document.getElementById('exparea').textContent).then(()=>{const b=event.target;b.textContent='已複製！';setTimeout(()=>b.textContent='複製文字',2000);});}
 
-rStaffGrid();rV0Cal();loadV0Notice();loadAllFromCloud().then(()=>{rV0Cal();rStaffGrid();});
+boot();
 </script>
 </body>
 </html>
